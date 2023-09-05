@@ -1,18 +1,24 @@
 package app
 
 import (
+	"WeatherApi/weather"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 )
 
 func defaultRequest(writer http.ResponseWriter, request *http.Request) {
 	fmt.Printf("Also called here, with URL \"%s\"\n", request.RequestURI)
 }
 
+var multiplierCount time.Duration
+
 func weatherRequest(writer http.ResponseWriter, request *http.Request) {
-	reqUrl := strings.TrimSpace(request.RequestURI[len("/weather/"):])
+	// reqUrl := strings.TrimSpace(request.RequestURI[len("/weather/"):])
+	reqUrl := strings.TrimSpace(request.RequestURI)
 	fmt.Printf("Received URL \"%s\"\n", reqUrl)
 
 	if reqUrl == "" {
@@ -20,36 +26,82 @@ func weatherRequest(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	escUrl, err := url.QueryUnescape(reqUrl)
+	mUrl, err := url.ParseRequestURI(reqUrl)
 	if err != nil {
-		fmt.Printf("Error unescaping: %v\n", err)
+		fmt.Printf("ParseRequestURI_Error: %v\n", err)
 	}
 
-	reqUrl = strings.TrimSpace(escUrl)
-	fmt.Printf("New URL: \"%s\"\n", reqUrl)
+	params := mUrl.Query()
+
+	timezone := func() string {
+		if params.Has("tz") {
+			return params.Get("tz")
+		}
+
+		if params.Has("timezone") {
+			return params.Get("timezone")
+		}
+
+		return ""
+	}()
+
+	lat := func() float64 {
+		if params.Has("lat") {
+			fl, _ := strconv.ParseFloat(params.Get("lat"), 64)
+			return fl
+		}
+
+		if params.Has("latitude") {
+			fl, _ := strconv.ParseFloat(params.Get("latitude"), 64)
+			return fl
+		}
+
+		return 0.0
+	}()
+
+	lon := func() float64 {
+		if params.Has("lon") {
+			fl, _ := strconv.ParseFloat(params.Get("lon"), 64)
+			return fl
+		}
+
+		if params.Has("longitude") {
+			fl, _ := strconv.ParseFloat(params.Get("longitude"), 64)
+			return fl
+		}
+
+		return 0.0
+	}()
 
 	// Check for common requests
-	switch reqUrl {
+	switch mUrl.Path[len("/weather/"):] {
 	case "current":
-		break
+		// Retrieve the current weather for the current timestamp
 	case "today":
 		// Check for the weather for the current day
-		break
+		w, err := weather.SpecificDay(time.Now(), timezone, lat, lon)
+
+		if err != nil {
+			fmt.Printf("[ERROR:\"/weather/today\"] %v\n", err)
+		}
+
+		fmt.Printf("Weather: %v\n", w)
 	case "tomorrow":
 		// Check for the weather for tomorrow
-		break
 	case "week":
 		// Check for the weather for this week, looping through all days on the current week (Monday - Sunday)
-		break
 	default:
 		// Unknown URL, throw 400 Bad Request
 		if strings.HasPrefix(reqUrl, "day") {
 			break
 		}
 
+		writer.Header().Set("Content-Type", "application/json")
+		defer writer.Write([]byte("{\"error\":400,\"message\":\"Unknown URL\"}"))
+		if err != nil {
+			return
+		}
 		writer.WriteHeader(http.StatusBadRequest)
-
-		break
 	}
 }
 

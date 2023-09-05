@@ -23,7 +23,7 @@ func openRequest(strUrl, tz string, tm time.Time, lat, lon float64) (string, err
 	}
 
 	reqUrl := fmt.Sprintf("%s?%s", strUrl, params.Encode())
-	fmt.Printf("Making a GET Request to %s\n", reqUrl)
+
 	response, err := http.Get(reqUrl)
 	if err != nil {
 		return "", err
@@ -40,11 +40,11 @@ func openRequest(strUrl, tz string, tm time.Time, lat, lon float64) (string, err
 }
 
 func jsonCurrent(tz string, lat, lon float64) (string, error) {
-	return openRequest(CurrentWeatherUrl, tz, time.Time{}, lat, lon)
+	return openRequest(currentWeatherUrl, tz, time.Time{}, lat, lon)
 }
 
 func jsonDay(tm time.Time, tz string, lat, lon float64) (string, error) {
-	return openRequest(HourlyWeatherUrl, tz, tm, lat, lon)
+	return openRequest(hourlyWeatherUrl, tz, tm, lat, lon)
 }
 
 func Current(tz string, lat, lon float64) (CurrentWeather, error) {

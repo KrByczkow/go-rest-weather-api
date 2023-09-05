@@ -22,11 +22,7 @@ type DayWeather struct {
 		PrecipitationProbability   *int      `json:"precipitation_probability"`
 		PrecipitationProbability6H *int      `json:"precipitation_probability_6h"`
 		Solar                      *float64  `json:"solar"`
-		FallbackSourceIds          struct {
-			Sunshine int `json:"sunshine"`
-			Solar    int `json:"solar,omitempty"`
-		} `json:"fallback_source_ids,omitempty"`
-		Icon string `json:"icon"`
+		Icon                       string    `json:"icon"`
 	} `json:"weather"`
 }
 

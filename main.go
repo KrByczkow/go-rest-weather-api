@@ -26,7 +26,7 @@ func main() {
 		return
 	}
 
-	yesterday, err := weather.SpecificDay(time.Now(), "Europe/Berlin", 52.52, 13.4)
+	yesterday, err := weather.SpecificDay(time.Now().Add(-(time.Hour * 24)), "Europe/Berlin", 52.52, 13.4)
 	if err != nil {
 		fmt.Printf("[Error:Main] %v\n", err)
 		return
