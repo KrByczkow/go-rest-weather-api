@@ -5,7 +5,6 @@ import "time"
 type DayWeather struct {
 	Weather []struct {
 		Timestamp                  time.Time `json:"timestamp"`
-		SourceId                   int       `json:"source_id"`
 		Precipitation              float64   `json:"precipitation"`
 		PressureMsl                float64   `json:"pressure_msl"`
 		Sunshine                   float64   `json:"sunshine"`
