@@ -6,44 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
 
-func retrieveParams(params url.Values) map[string]string {
-	var outMap = map[string]string{}
-
-	for k, v := range params {
-		value := strings.Join(v, ", ")
-
-		if strings.HasPrefix(k, "lat") {
-			if _, ok := outMap["lat"]; !ok {
-				outMap["lat"] = value
-			}
-		}
-
-		if strings.HasPrefix(k, "lon") {
-			if _, ok := outMap["lon"]; !ok {
-				outMap["lon"] = value
-			}
-		}
-
-		if k == "tz" || k == "timezone" {
-			if _, ok := outMap["tz"]; !ok {
-				outMap["tz"] = value
-			}
-		}
-	}
-
-	return outMap
-}
-
-func verifyRequestCallback(lat, lon *float64) bool {
-	return lat == nil && lon == nil
-}
-
-func defaultRequest(writer http.ResponseWriter, request *http.Request) {
+func defaultRequest(w http.ResponseWriter, request *http.Request) {
 	mUrl := request.RequestURI
 
 	if strings.Contains(mUrl, "icon") || strings.Contains(mUrl, "fav") {
@@ -51,6 +18,18 @@ func defaultRequest(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	fmt.Printf("Also called here, with URL \"%s\"\n", request.RequestURI)
+
+	w.WriteHeader(http.StatusPartialContent)
+	w.Header().Set("Content-Type", "application/json")
+
+	mkErr := mkError(206, "Supported API Connections: \\\"weather\"\\")
+	jsonData, err := json.Marshal(mkErr)
+	if err != nil {
+		fmt.Printf("JSON Marshal Error: %v\n", err)
+		return
+	}
+
+	defer w.Write(jsonData)
 }
 
 func weatherRequest(writer http.ResponseWriter, request *http.Request) {
@@ -83,7 +62,7 @@ func weatherRequest(writer http.ResponseWriter, request *http.Request) {
 		timezone = mp["tz"]
 
 		if len(mp["lat"]) != 0 {
-			fl, err := strconv.ParseFloat(mp["lat"], 64)
+			fl, err := convertStringToFloat(mp["lat"])
 			if err != nil {
 				fmt.Printf("LocationParserError(Latitude) :: %v\n", err)
 			}
@@ -92,12 +71,12 @@ func weatherRequest(writer http.ResponseWriter, request *http.Request) {
 		}
 
 		if len(mp["lon"]) != 0 {
-			fl0, err := strconv.ParseFloat(mp["lon"], 64)
+			fl, err := convertStringToFloat(mp["lat"])
 			if err != nil {
 				fmt.Printf("LocationParserError(Longitude) :: %v\n", err)
 			}
 
-			lon = &fl0
+			lon = &fl
 		}
 	}
 
