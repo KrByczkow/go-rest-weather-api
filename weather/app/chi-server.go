@@ -174,7 +174,7 @@ func dayWeatherRequest(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonBody)
 }
 
-func ExtRunServer(port int) error {
+func ExtRunServer(bindAddr string) error {
 	rt := chi.NewRouter()
 
 	rt.Get("/weather/current", currentWeatherRequest)
@@ -182,7 +182,7 @@ func ExtRunServer(port int) error {
 	rt.Get("/weather/day", dayWeatherRequest)
 
 	srv := http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
+		Addr:    bindAddr,
 		Handler: rt,
 
 		ReadTimeout:       time.Second * 30,
