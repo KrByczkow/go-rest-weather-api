@@ -52,7 +52,7 @@ func weatherRequest(writer http.ResponseWriter, request *http.Request) {
 	params := mUrl.Query()
 	var mp map[string]string
 	if params != nil && len(params) != 0 {
-		mp = retrieveParams(params)
+		mp, _ = retrieveParams(params)
 	}
 
 	timezone := ""

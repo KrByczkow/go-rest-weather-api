@@ -3,6 +3,7 @@ package app
 import (
 	"WeatherApi/weather"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"net/http"
@@ -10,17 +11,15 @@ import (
 )
 
 func initializeClientRequest(w http.ResponseWriter, r *http.Request) (*time.Time, string, *float64, *float64, error) {
-	params := mkMapParams(r)
-	if params == nil || len(params) == 0 {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
+	w.Header().Set("Content-Type", "application/json")
 
-		bytes, err := json.Marshal(mkError(400, "Requires either the city and country parameters, or the latitude along with longitude"))
-		if err != nil {
-			fmt.Printf("JsonBuilderError: %v\n", err)
+	params, paramCount := mkMapParams(r)
+	if params == nil || len(params) == 0 {
+		if paramCount == 0 {
+			return nil, "", nil, nil, errors.New("no parameters have been given to the URL request")
 		}
 
-		defer w.Write(bytes)
+		return nil, "", nil, nil, errors.New("invalid parameters have been given to the URL request")
 	}
 
 	var tz string
@@ -58,7 +57,9 @@ func initializeClientRequest(w http.ResponseWriter, r *http.Request) (*time.Time
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	if lat == nil || lon == nil {
+		return tm, tz, nil, nil, errors.New("latitude and/or longitude parameters are missing")
+	}
 
 	return tm, tz, lat, lon, nil
 }
@@ -66,22 +67,23 @@ func initializeClientRequest(w http.ResponseWriter, r *http.Request) (*time.Time
 func currentWeatherRequest(w http.ResponseWriter, r *http.Request) {
 	_, tz, lat, lon, err := initializeClientRequest(w, r)
 	if err != nil {
-		fmt.Printf("{RequestError} %v\n", err)
+		errTag := mkError(http.StatusBadRequest, err.Error())
+
+		if iErr := sendData(w, errTag); iErr != nil {
+			fmt.Printf("[ResponseSendError] %v\n", iErr)
+		}
+
 		return
 	}
 
 	wt, err := weather.Current(tz, *lat, *lon)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		errBody := mkError(http.StatusInternalServerError, fmt.Sprintf("Cannot obtain weather due to this following error: %v", err))
 
-		errBody := mkError(500, fmt.Sprintf("Cannot obtain weather due to this following error: %v", err))
-		errJson, err := json.Marshal(errBody)
-		if err != nil {
-			fmt.Printf("Error making JSON Body: %v\n", err)
-			return
+		if iErr := sendData(w, errBody); iErr != nil {
+			fmt.Printf("[ResponseSendError] %v\n", err)
 		}
 
-		w.Write(errJson)
 		return
 	}
 
@@ -98,22 +100,23 @@ func currentWeatherRequest(w http.ResponseWriter, r *http.Request) {
 func todayWeatherRequest(w http.ResponseWriter, r *http.Request) {
 	_, tz, lat, lon, err := initializeClientRequest(w, r)
 	if err != nil {
-		fmt.Printf("{RequestError} %v\n", err)
+		errTag := mkError(http.StatusBadRequest, fmt.Sprintf("request error (%v)", err))
+
+		if nErr := sendData(w, errTag); nErr != nil {
+			fmt.Printf("[ResponseSendError] %v\n", nErr)
+		}
+
 		return
 	}
 
 	wt, err := weather.SpecificDay(time.Now(), tz, *lat, *lon)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-
 		errBody := mkError(500, fmt.Sprintf("Cannot obtain weather due to this following error: %v", err))
-		errJson, err := json.Marshal(errBody)
-		if err != nil {
-			fmt.Printf("Error making JSON Body: %v\n", err)
-			return
+
+		if iErr := sendData(w, errBody); iErr != nil {
+			fmt.Printf("[ResponseSendError:InternalError] %v\n", err)
 		}
 
-		w.Write(errJson)
 		return
 	}
 
@@ -130,37 +133,33 @@ func todayWeatherRequest(w http.ResponseWriter, r *http.Request) {
 func dayWeatherRequest(w http.ResponseWriter, r *http.Request) {
 	tm, tz, lat, lon, err := initializeClientRequest(w, r)
 	if err != nil {
-		fmt.Printf("{RequestError} %v\n", err)
+		errTag := mkError(http.StatusBadRequest, fmt.Sprintf("request error (%v)", err))
+
+		if nErr := sendData(w, errTag); nErr != nil {
+			fmt.Printf("[ResponseSendError] %v\n", nErr)
+		}
+
 		return
 	}
 
 	if tm == nil {
-		w.WriteHeader(http.StatusBadRequest)
-
 		errBody := mkError(http.StatusBadRequest, fmt.Sprintf("The 'date' parameter is missing"))
-		errJson, err := json.Marshal(errBody)
 
-		if err != nil {
-			fmt.Printf("Error making JSON Body: %v\n", err)
-			return
+		if nErr := sendData(w, errBody); nErr != nil {
+			fmt.Printf("[ResponseSendError] %v\n", nErr)
 		}
 
-		w.Write(errJson)
 		return
 	}
 
 	wt, err := weather.SpecificDay(*tm, tz, *lat, *lon)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		errBody := mkError(http.StatusInternalServerError, fmt.Sprintf("Cannot obtain weather due to this following error: %v", err))
 
-		errBody := mkError(500, fmt.Sprintf("Cannot obtain weather due to this following error: %v", err))
-		errJson, err := json.Marshal(errBody)
-		if err != nil {
-			fmt.Printf("Error making JSON Body: %v\n", err)
-			return
+		if iErr := sendData(w, errBody); iErr != nil {
+			fmt.Printf("[ResponseSendError] %v\n", iErr)
 		}
 
-		w.Write(errJson)
 		return
 	}
 
@@ -170,7 +169,7 @@ func dayWeatherRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 	w.Write(jsonBody)
 }
 
